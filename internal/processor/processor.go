@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
 	"github.com/holonoms/sandworm/internal/filetree"
+	"github.com/karrick/godirwalk"
 )
 
 const separator = "================================================================================"
@@ -82,12 +83,19 @@ go.sum
 *.bin
 `
 
+// FileInfo represents a file to be included in the output
+type FileInfo struct {
+	RelativePath string // The path to display in the output (relative to root)
+	ActualPath   string // The actual path to read the file from (resolved symlinks)
+}
+
 // Processor handles the concatenation of project files into a single document
 type Processor struct {
-	rootDir    string
-	outputFile string
-	ignoreFile string
-	matcher    gitignore.Matcher
+	rootDir        string
+	outputFile     string
+	ignoreFile     string
+	matcher        gitignore.Matcher
+	followSymlinks bool
 }
 
 // New creates a new Processor instance
@@ -95,9 +103,10 @@ func New(rootDir, outputFile, ignoreFile string) (*Processor, error) {
 	rootDir = filepath.Clean(rootDir)
 
 	p := &Processor{
-		rootDir:    rootDir,
-		outputFile: outputFile,
-		ignoreFile: ignoreFile,
+		rootDir:        rootDir,
+		outputFile:     outputFile,
+		ignoreFile:     ignoreFile,
+		followSymlinks: false,
 	}
 
 	// Initialize patterns with EXTRA_IGNORES
@@ -159,6 +168,11 @@ func New(rootDir, outputFile, ignoreFile string) (*Processor, error) {
 
 	p.matcher = gitignore.NewMatcher(patterns)
 	return p, nil
+}
+
+// SetFollowSymlinks enables or disables following symbolic links during traversal
+func (p *Processor) SetFollowSymlinks(follow bool) {
+	p.followSymlinks = follow
 }
 
 // Process concatenates all project files into a single document
