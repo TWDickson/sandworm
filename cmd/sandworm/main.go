@@ -103,10 +103,17 @@ func runGenerate(opts *cmdOptions) (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("unable to create processor: %w", err)
 	}
-	// Set symlink following option (command-line flag overrides project config)
-	if opts.followSymlinks {
-		p.SetFollowSymlinks(true)
+
+	// Determine symlink following behavior: command-line flag overrides project config
+	followSymlinks := opts.followSymlinks
+	if !followSymlinks {
+		// Check project config if command-line flag is not set
+		cfg, err := config.New(opts.directory)
+		if err == nil && cfg.Has("processor.follow_symlinks") {
+			followSymlinks = cfg.Get("processor.follow_symlinks") == "true"
+		}
 	}
+	p.SetFollowSymlinks(followSymlinks)
 
 	size, err := p.Process()
 	if err != nil {
